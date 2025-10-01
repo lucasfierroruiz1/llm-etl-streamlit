@@ -1,17 +1,35 @@
 from pathlib import Path
 from bs4 import BeautifulSoup
 import requests
+import time
 
 DATA = Path("data")
 DATA.mkdir(parents=True, exist_ok=True)
 RAW = DATA / "raw_blob.txt"
 
-URL = "https://www.charlottefootballclub.com/news"
+URL = "https://www.espn.com/soccer/team/stats/_/id/83/barcelona"
 
-r = requests.get(URL, timeout=30)
-r.raise_for_status()
+# Single line headers only
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
-soup = BeautifulSoup(r.text, "html.parser")
+def fetch_with_retries(url: str, tries: int = 3, delay: float = 1.0) -> str:
+    last_exc = None
+    for _ in range(tries):
+        try:
+            r = requests.get(url, headers=HEADERS, timeout=30)
+            r.raise_for_status()
+            return r.text
+        except Exception as e:
+            last_exc = e
+            time.sleep(delay)
+    raise last_exc
+
+html = fetch_with_retries(URL)
+
+soup = BeautifulSoup(html, "html.parser")
 for t in soup(["script", "style", "noscript"]):
     t.decompose()
 
